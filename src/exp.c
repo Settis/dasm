@@ -1008,8 +1008,35 @@ const char *pushsymbol(const char *str)
 
     if (*ptr == '$')
         ptr++;
+    
+    char *symName = str;
+    int symNameLen = ptr-str;
 
-    if ((sym = findsymbol(str, ptr - str)) != NULL)
+    if (ptr[0] == '<' && ptr[1] == '/' && ptr[2] == '>') {
+        char tempval[257];
+        strncpy(tempval, ptr+3, 256);
+        tempval[256] = 0;
+        ptr += 3 + strlen(tempval);
+        SYMBOL *symarg = eval(tempval,0);
+        if (symarg)
+        {
+            if (symarg->flags & SYM_UNKNOWN)
+            {
+                ++Redo_eval;
+                symbolRecursionCount--;
+                return ptr;
+            }
+            else
+            {
+                symName = tempval;
+                strncpy(symName, str, ptr-str);
+                snprintf(symName+symNameLen,256,"%d",(unsigned)symarg->value);
+                symNameLen = strlen(symName);
+            }
+        }
+    }
+
+    if ((sym = findsymbol(symName, symNameLen)) != NULL)
     {
         if (sym->flags & SYM_UNKNOWN)
             ++Redo_eval;
@@ -1034,7 +1061,7 @@ const char *pushsymbol(const char *str)
     else
     {
         stackarg(0L, SYM_UNKNOWN, NULL);
-        sym = CreateSymbol( str, ptr - str );
+        sym = CreateSymbol(symName, symNameLen);
         sym->flags = SYM_REF|SYM_MASREF|SYM_UNKNOWN;
         ++Redo_eval;
     }
